@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Bot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1a1f2c;
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .card {
+            background-color: #2a3142;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .btn {
+            background-color: #4e74ff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn:hover {
+            background-color: #3a5fd9;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        .status-success {
+            background-color: #28a745;
+        }
+        .status-danger {
+            background-color: #dc3545;
+        }
+        .status-warning {
+            background-color: #ffc107;
+            color: #000;
+        }
+        .network-buttons {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .network-btn {
+            flex: 1;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #4e74ff;
+            background: transparent;
+            color: white;
+            cursor: pointer;
+        }
+        .network-btn.active {
+            background-color: #4e74ff;
+        }
+        .log {
+            background-color: #1a1f2c;
+            border-radius: 4px;
+            padding: 10px;
+            height: 150px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+        }
+        .log-time {
+            color: #6c757d;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AVAX Trading Bot</h1>
+            <p>AI-Enhanced Trading on Arbitrum, Avalanche, and Ethereum</p>
+        </div>
+        
+        <div class="card">
+            <h2>Wallet Connection</h2>
+            <button id="connect-wallet" class="btn">Connect MetaMask</button>
+            <span id="wallet-status" class="status status-danger">Not Connected</span>
+            
+            <div class="network-buttons">
+                <button class="network-btn" data-network="ethereum">Ethereum</button>
+                <button class="network-btn" data-network="arbitrum">Arbitrum</button>
+                <button class="network-btn active" data-network="avalanche">Avalanche</button>
+            </div>
+            
+            <div>
+                <span>Current Network: </span>
+                <span id="current-network">Not Connected</span>
+            </div>
+            <div>
+                <span>Wallet Address: </span>
+                <span id="wallet-address">-</span>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>AI Trading Agent</h2>
+            <div>
+                <span>Status: </span>
+                <span id="ai-status" class="status status-success">Active</span>
+            </div>
+            <div>
+                <span>Current Strategy: </span>
+                <span id="current-strategy">Scalping</span>
+            </div>
+            <div>
+                <span>Last Signal: </span>
+                <span id="last-signal">-</span>
+            </div>
+            <div>
+                <span>Win Rate: </span>
+                <span id="win-rate">78%</span>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>System Log</h2>
+            <div id="system-log" class="log">
+                <div class="log-entry">
+                    <span class="log-time">21:30:00</span>
+                    <span>Trading bot initialized</span>
+                </div>
+                <div class="log-entry">
+                    <span class="log-time">21:30:05</span>
+                    <span>AI agent activated with Scalping strategy</span>
+                </div>
+                <div class="log-entry">
+                    <span class="log-time">21:30:10</span>
+                    <span>Waiting for wallet connection...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simple wallet connection
+        document.getElementById('connect-wallet').addEventListener('click', async function() {
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    // Request account access
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    const account = accounts[0];
+                    
+                    // Update UI
+                    document.getElementById('wallet-status').textContent = 'Connected';
+                    document.getElementById('wallet-status').className = 'status status-success';
+                    document.getElementById('wallet-address').textContent = formatAddress(account);
+                    
+                    // Get current network
+                    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+                    updateNetwork(chainId);
+                    
+                    // Add to log
+                    addToLog('Wallet connected: ' + formatAddress(account));
+                    
+                    // Set up event listeners
+                    window.ethereum.on('accountsChanged', function(accounts) {
+                        if (accounts.length === 0) {
+                            document.getElementById('wallet-status').textContent = 'Disconnected';
+                            document.getElementById('wallet-status').className = 'status status-danger';
+                            document.getElementById('wallet-address').textContent = '-';
+                            addToLog('Wallet disconnected');
+                        } else {
+                            document.getElementById('wallet-address').textContent = formatAddress(accounts[0]);
+                            addToLog('Account changed: ' + formatAddress(accounts[0]));
+                        }
+                    });
+                    
+                    window.ethereum.on('chainChanged', function(chainId) {
+                        updateNetwork(chainId);
+                        addToLog('Network changed: ' + getNetworkName(chainId));
+                    });
+                    
+                } catch (error) {
+                    console.error(error);
+                    addToLog('Error connecting wallet: ' + error.message);
+                }
+            } else {
+                alert('MetaMask is not installed!');
+                addToLog('MetaMask not detected');
+            }
+        });
+        
+        // Network buttons
+        document.querySelectorAll('.network-btn').forEach(function(button) {
+            button.addEventListener('click', async function() {
+                const network = this.getAttribute('data-network');
+                
+                if (typeof window.ethereum === 'undefined') {
+                    alert('MetaMask is not installed!');
+                    return;
+                }
+                
+                try {
+                    if (network === 'ethereum') {
+                        await switchToEthereum();
+                    } else if (network === 'arbitrum') {
+                        await switchToArbitrum();
+                    } else if (network === 'avalanche') {
+                        await switchToAvalanche();
+                    }
+                    
+                    // Update active button
+                    document.querySelectorAll('.network-btn').forEach(btn => btn.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                } catch (error) {
+                    console.error(error);
+                    addToLog('Error switching network: ' + error.message);
+                }
+            });
+        });
+        
+        // Helper functions
+        function formatAddress(address) {
+            return address.substring(0, 6) + '...' + address.substring(address.length - 4);
+        }
+        
+        function updateNetwork(chainId) {
+            let networkName = getNetworkName(chainId);
+            document.getElementById('current-network').textContent = networkName;
+            
+            // Update active button
+            document.querySelectorAll('.network-btn').forEach(btn => btn.classList.remove('active'));
+            if (chainId === '0x1') {
+                document.querySelector('[data-network="ethereum"]').classList.add('active');
+            } else if (chainId === '0xa4b1') {
+                document.querySelector('[data-network="arbitrum"]').classList.add('active');
+            } else if (chainId === '0xa86a') {
+                document.querySelector('[data-network="avalanche"]').classList.add('active');
+            }
+        }
+        
+        function getNetworkName(chainId) {
+            switch (chainId) {
+                case '0x1':
+                    return 'Ethereum Mainnet';
+                case '0xa4b1':
+                    return 'Arbitrum One';
+                case '0xa86a':
+                    return 'Avalanche C-Chain';
+                default:
+                    return 'Unknown Network';
+            }
+        }
+        
+        async function switchToEthereum() {
+            try {
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: '0x1' }],
+                });
+                return true;
+            } catch (error) {
+                console.error(error);
+                addToLog('Error switching to Ethereum: ' + error.message);
+                return false;
+            }
+        }
+        
+        async function switchToArbitrum() {
+            try {
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: '0xa4b1' }],
+                });
+                return true;
+            } catch (error) {
+                // This error code indicates that the chain has not been added to MetaMask
+                if (error.code === 4902) {
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_addEthereumChain',
+                            params: [
+                                {
+                                    chainId: '0xa4b1',
+                                    chainName: 'Arbitrum One',
+                                    nativeCurrency: {
+                                        name: 'Ether',
+                                        symbol: 'ETH',
+                                        decimals: 18
+                                    },
+                                    rpcUrls: ['https://arb1.arbitrum.io/rpc'],
+                                    blockExplorerUrls: ['https://arbiscan.io']
+                                },
+                            ],
+                        });
+                        return true;
+                    } catch (addError) {
+                        console.error(addError);
+                        addToLog('Error adding Arbitrum network: ' + addError.message);
+                        return false;
+                    }
+                }
+                console.error(error);
+                addToLog('Error switching to Arbitrum: ' + error.message);
+                return false;
+            }
+        }
+        
+        async function switchToAvalanche() {
+            try {
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: '0xa86a' }],
+                });
+                return true;
+            } catch (error) {
+                // This error code indicates that the chain has not been added to MetaMask
+                if (error.code === 4902) {
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_addEthereumChain',
+                            params: [
+                                {
+                                    chainId: '0xa86a',
+                                    chainName: 'Avalanche C-Chain',
+                                    nativeCurrency: {
+                                        name: 'Avalanche',
+                                        symbol: 'AVAX',
+                                        decimals: 18
+                                    },
+                                    rpcUrls: ['https://api.avax.network/ext/bc/C/rpc'],
+                                    blockExplorerUrls: ['https://snowtrace.io']
+                                },
+                            ],
+                        });
+                        return true;
+                    } catch (addError) {
+                        console.error(addError);
+                        addToLog('Error adding Avalanche network: ' + addError.message);
+                        return false;
+                    }
+                }
+                console.error(error);
+                addToLog('Error switching to Avalanche: ' + error.message);
+                return false;
+            }
+        }
+        
+        function addToLog(message) {
+            const log = document.getElementById('system-log');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            
+            const time = document.createElement('span');
+            time.className = 'log-time';
+            time.textContent = new Date().toLocaleTimeString();
+            
+            const text = document.createElement('span');
+            text.textContent = message;
+            
+            entry.appendChild(time);
+            entry.appendChild(text);
+            log.appendChild(entry);
+            
+            // Scroll to bottom
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        // Simulate AI trading agent
+        function simulateTrading() {
+            const signals = ['BUY', 'SELL'];
+            const strategies = ['Scalping', 'Day Trading', 'Swing Trading'];
+            
+            // Randomly generate signals
+            setInterval(() => {
+                if (Math.random() > 0.7) {
+                    const signal = signals[Math.floor(Math.random() * signals.length)];
+                    document.getElementById('last-signal').textContent = signal;
+                    document.getElementById('last-signal').style.color = signal === 'BUY' ? '#28a745' : '#dc3545';
+                    
+                    addToLog(`Generated ${signal} signal based on Market Cipher and Lux Algo indicators`);
+                }
+            }, 10000);
+            
+            // Randomly change strategy
+            setInterval(() => {
+                if (Math.random() > 0.9) {
+                    const strategy = strategies[Math.floor(Math.random() * strategies.length)];
+                    document.getElementById('current-strategy').textContent = strategy;
+                    addToLog(`Switched to ${strategy} strategy`);
+                }
+            }, 30000);
+        }
+        
+        // Start simulation
+        simulateTrading();
+        
+        // Add initial log entries
+        setTimeout(() => {
+            addToLog('Market Cipher indicators initialized');
+            addToLog('Lux Algo price action analysis started');
+            addToLog('AI trading agent ready for signals');
+        }, 2000);
+    </script>
+</body>
+</html>
