@@ -1,0 +1,1542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Bot - Arbitrum Network</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #4e74ff;
+            --secondary-color: #242a38;
+            --background-color: #1a1e2a;
+            --card-color: #242a38;
+            --text-color: #ffffff;
+            --border-color: #2d3548;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --info-color: #17a2b8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .logo img {
+            height: 30px;
+            margin-right: 10px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #3a5cd8;
+        }
+
+        .btn-secondary {
+            background-color: var(--secondary-color);
+            color: white;
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background-color: #2d3548;
+        }
+
+        .btn-success {
+            background-color: var(--success-color);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: #218838;
+        }
+
+        .btn-danger {
+            background-color: var(--danger-color);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background-color: var(--card-color);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .wallet-info {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .wallet-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        .status-indicator.connected {
+            background-color: var(--success-color);
+        }
+
+        .status-indicator.disconnected {
+            background-color: var(--danger-color);
+        }
+
+        .timeframe-options {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .timeframe-option {
+            padding: 10px;
+            background-color: var(--secondary-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .timeframe-option:hover {
+            background-color: #2d3548;
+        }
+
+        .timeframe-option.active {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .timeframe-description {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #aaa;
+        }
+
+        .leverage-options {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+
+        .leverage-option {
+            padding: 8px 0;
+            background-color: var(--secondary-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .leverage-option:hover {
+            background-color: #2d3548;
+        }
+
+        .leverage-option.active {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .leverage-row {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 5px;
+            margin-bottom: 5px;
+        }
+
+        .leverage-warning {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #aaa;
+        }
+
+        .strategy-options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .strategy-option {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background-color: var(--secondary-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .strategy-option:hover {
+            background-color: #2d3548;
+        }
+
+        .strategy-option.active {
+            background-color: #2d3548;
+            border-color: var(--primary-color);
+        }
+
+        .strategy-option input[type="radio"] {
+            margin-right: 10px;
+        }
+
+        .strategy-description {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #aaa;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 400px;
+            margin-top: 15px;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .tradingview-container {
+            width: 100%;
+            height: 100%;
+        }
+
+        .market-data {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .market-item {
+            background-color: var(--secondary-color);
+            border-radius: 4px;
+            padding: 10px;
+        }
+
+        .market-item-label {
+            font-size: 12px;
+            color: #aaa;
+            margin-bottom: 5px;
+        }
+
+        .market-item-value {
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .market-item-change {
+            font-size: 12px;
+            margin-left: 5px;
+        }
+
+        .market-item-change.positive {
+            color: var(--success-color);
+        }
+
+        .market-item-change.negative {
+            color: var(--danger-color);
+        }
+
+        .log-container {
+            height: 200px;
+            overflow-y: auto;
+            background-color: var(--secondary-color);
+            border-radius: 4px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            margin-top: 15px;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            line-height: 1.4;
+        }
+
+        .log-time {
+            color: var(--primary-color);
+            margin-right: 10px;
+        }
+
+        .portfolio-metrics {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .metric-item {
+            background-color: var(--secondary-color);
+            border-radius: 4px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: #aaa;
+            margin-bottom: 5px;
+        }
+
+        .metric-value {
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .portfolio-terminal {
+            margin-top: 15px;
+        }
+
+        .terminal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background-color: #1a1e2a;
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+
+        .terminal-title {
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .terminal-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .terminal-content {
+            height: 200px;
+            overflow-y: auto;
+            background-color: #1a1e2a;
+            border: 1px solid var(--border-color);
+            border-top: none;
+            border-bottom-left-radius: 4px;
+            border-bottom-right-radius: 4px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .terminal-input {
+            display: flex;
+            margin-top: 10px;
+        }
+
+        .terminal-prompt {
+            color: var(--primary-color);
+            margin-right: 5px;
+        }
+
+        .terminal-command {
+            flex: 1;
+            background: none;
+            border: none;
+            color: var(--text-color);
+            font-family: monospace;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .notification-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .notification {
+            background-color: var(--card-color);
+            border-left: 4px solid var(--primary-color);
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            animation: slideIn 0.3s ease-out;
+            max-width: 300px;
+        }
+
+        .notification.success {
+            border-left-color: var(--success-color);
+        }
+
+        .notification.error {
+            border-left-color: var(--danger-color);
+        }
+
+        .notification.warning {
+            border-left-color: var(--warning-color);
+        }
+
+        .notification.info {
+            border-left-color: var(--info-color);
+        }
+
+        .notification-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .notification-message {
+            font-size: 14px;
+        }
+
+        .notification.fade-out {
+            animation: fadeOut 0.5s ease-out forwards;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+            }
+            to {
+                opacity: 0;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .timeframe-options,
+            .leverage-options,
+            .leverage-row,
+            .market-data,
+            .portfolio-metrics {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Tooltip styles */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            width: 200px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 4px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Connected button style */
+        .btn.connected {
+            background-color: var(--success-color);
+        }
+
+        .btn.connected:hover {
+            background-color: #218838;
+        }
+
+        /* Market data status */
+        .market-data-status {
+            font-size: 12px;
+            color: #aaa;
+            margin-top: 5px;
+            display: flex;
+            align-items: center;
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        .status-dot.live {
+            background-color: var(--success-color);
+        }
+
+        .status-dot.reconnecting {
+            background-color: var(--warning-color);
+        }
+
+        .status-dot.error {
+            background-color: var(--danger-color);
+        }
+
+        /* Pulse animation for live status */
+        .status-dot.live {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.4);
+            }
+            70% {
+                box-shadow: 0 0 0 5px rgba(40, 167, 69, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iIzRlNzRmZiIgZD0iTTEyIDJDNi40NzcgMiAyIDYuNDc3IDIgMTJzNC40NzcgMTAgMTAgMTAgMTAtNC40NzcgMTAtMTBTMTcuNTIzIDIgMTIgMnptLTEuMjUgMTQuMjVWMTFoMi41djUuMjVoLTIuNXptMS4yNS03LjVjLS42OSAwLTEuMjUtLjU2LTEuMjUtMS4yNVMxMS4zMSA2IDEyIDZzMS4yNS41NiAxLjI1IDEuMjUtLjU2IDEuMjUtMS4yNSAxLjI1eiIvPjwvc3ZnPg==" alt="Logo">
+                Trading Bot
+            </div>
+            <div class="header-actions">
+                <select id="network-select" class="btn btn-secondary">
+                    <option value="arbitrum">Arbitrum</option>
+                    <option value="avalanche">Avalanche C-Chain</option>
+                    <option value="ethereum">Ethereum</option>
+                </select>
+                <button id="connect-wallet" class="btn btn-primary">Connect Wallet</button>
+            </div>
+        </header>
+
+        <div class="grid">
+            <div class="card">
+                <h2>Wallet Connection</h2>
+                <div class="wallet-info">
+                    <div class="wallet-row">
+                        <div>
+                            <span id="status-indicator" class="status-indicator disconnected"></span>
+                            <span id="connection-status">Disconnected</span>
+                        </div>
+                        <button id="connect-metamask" class="btn btn-primary">Connect MetaMask</button>
+                    </div>
+                    <div id="wallet-details" style="display: none;">
+                        <div class="wallet-row">
+                            <span>Address:</span>
+                            <span id="wallet-address">0x0000...0000</span>
+                        </div>
+                        <div class="wallet-row">
+                            <span>Network:</span>
+                            <span id="wallet-network">Arbitrum</span>
+                        </div>
+                        <div class="wallet-row">
+                            <span>Balance:</span>
+                            <span id="wallet-balance">0.000 ETH</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Trading Timeframe</h2>
+                <div class="timeframe-options">
+                    <div id="scalping" class="timeframe-option active">Scalping</div>
+                    <div id="day-trading" class="timeframe-option">Day Trading</div>
+                    <div id="swing-trading" class="timeframe-option">Swing Trading</div>
+                </div>
+                <div class="timeframe-description">
+                    <strong>Description:</strong> Very short-term trades (minutes to hours)
+                    <br>
+                    <strong>Target Profit:</strong> 3-5%
+                    <br>
+                    <strong>Stop Loss:</strong> 2-3%
+                    <br>
+                    <strong>Max Trades/Day:</strong> 20
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Leverage</h2>
+                <div class="leverage-row">
+                    <div id="leverage-10x" class="leverage-option">10x</div>
+                    <div id="leverage-15x" class="leverage-option">15x</div>
+                    <div id="leverage-20x" class="leverage-option">20x</div>
+                    <div id="leverage-25x" class="leverage-option">25x</div>
+                    <div id="leverage-30x" class="leverage-option">30x</div>
+                </div>
+                <div class="leverage-row">
+                    <div id="leverage-35x" class="leverage-option">35x</div>
+                    <div id="leverage-40x" class="leverage-option active">40x</div>
+                    <div id="leverage-45x" class="leverage-option">45x</div>
+                    <div id="leverage-50x" class="leverage-option">50x</div>
+                    <div id="leverage-100x" class="leverage-option">100x</div>
+                </div>
+                <div class="leverage-warning">
+                    Higher leverage increases both potential profits and risks.
+                </div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h2>Trading Strategy</h2>
+                <div class="strategy-options">
+                    <label class="strategy-option active">
+                        <input type="radio" name="strategy" value="ai" checked>
+                        <span>AI Trading Agent</span>
+                    </label>
+                    <label class="strategy-option">
+                        <input type="radio" name="strategy" value="manual">
+                        <span>Manual Trading</span>
+                    </label>
+                </div>
+                <div class="strategy-description">
+                    <strong>Strategy:</strong> AI Trading Agent
+                    <br>
+                    <strong>Description:</strong> Uses AI to analyze market conditions and execute trades automatically based on Market Cipher and Lux Algo indicators.
+                    <br>
+                    <strong>Risk Level:</strong> Medium
+                </div>
+                <div class="action-buttons">
+                    <button id="start-trading" class="btn btn-success">Start Trading</button>
+                    <button id="stop-trading" class="btn btn-danger" disabled>Stop Trading</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>TradingView Chart</h2>
+                <div class="chart-container">
+                    <div id="tradingview-chart-container" class="tradingview-container"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h2>Market Data <span id="market-data-refresh" class="spinner" style="display: none;"></span></h2>
+                <div class="market-data">
+                    <div class="market-item">
+                        <div class="market-item-label">AVAX/USDT</div>
+                        <div class="market-item-value">$25.16 <span class="market-item-change positive">+0.61%</span></div>
+                    </div>
+                    <div class="market-item">
+                        <div class="market-item-label">24h Volume</div>
+                        <div class="market-item-value">$155.3M <span class="market-item-change positive">+3.27%</span></div>
+                    </div>
+                    <div class="market-item">
+                        <div class="market-item-label">Funding Rate</div>
+                        <div class="market-item-value">0.010% <span class="market-item-change negative">-0.002%</span></div>
+                    </div>
+                    <div class="market-item">
+                        <div class="market-item-label">Open Interest</div>
+                        <div class="market-item-value">$42.9M <span class="market-item-change positive">+2.15%</span></div>
+                    </div>
+                </div>
+                <div id="market-data-status" class="market-data-status">
+                    <span class="status-dot live"></span> Live data from Antarctic Exchange
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>AI Trading Agent</h2>
+                <div id="agent-status">
+                    <div><strong>Status:</strong> Ready</div>
+                    <div><strong>Last Signal:</strong> None</div>
+                    <div><strong>Confidence:</strong> 0%</div>
+                    <div><strong>Market Trend:</strong> Neutral</div>
+                </div>
+                <div id="system-log" class="log-container">
+                    <div class="log-entry">
+                        <span class="log-time">12:00:00</span>
+                        <span>AI Trading Agent initialized</span>
+                    </div>
+                    <div class="log-entry">
+                        <span class="log-time">12:00:01</span>
+                        <span>Connecting to Antarctic Exchange API...</span>
+                    </div>
+                    <div class="log-entry">
+                        <span class="log-time">12:00:02</span>
+                        <span>Connected to Antarctic Exchange API</span>
+                    </div>
+                    <div class="log-entry">
+                        <span class="log-time">12:00:03</span>
+                        <span>Loading Market Cipher indicators...</span>
+                    </div>
+                    <div class="log-entry">
+                        <span class="log-time">12:00:04</span>
+                        <span>Loading Lux Algo indicators...</span>
+                    </div>
+                    <div class="log-entry">
+                        <span class="log-time">12:00:05</span>
+                        <span>All indicators loaded successfully</span>
+                    </div>
+                    <div class="log-entry">
+                        <span class="log-time">12:00:06</span>
+                        <span>AI Trading Agent ready</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h2>Trading History</h2>
+                <div id="trading-history" class="log-container">
+                    <div class="log-entry">
+                        <span class="log-time">--:--:--</span>
+                        <span>No trades yet</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Portfolio Analytics</h2>
+                <div class="portfolio-metrics">
+                    <div class="metric-item">
+                        <div class="metric-label">Portfolio Value</div>
+                        <div class="metric-value">$1,000.00</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">Daily P/L</div>
+                        <div class="metric-value">$0.00 (0.00%)</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">Win Rate</div>
+                        <div class="metric-value">0.00%</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">Profit Factor</div>
+                        <div class="metric-value">0.00</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">Max Drawdown</div>
+                        <div class="metric-value">0.00%</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">Total Trades</div>
+                        <div class="metric-value">0</div>
+                    </div>
+                </div>
+                <div id="portfolio-chart-container" class="chart-container" style="height: 200px;"></div>
+                <div class="portfolio-terminal">
+                    <div class="terminal-header">
+                        <div class="terminal-title">Portfolio Terminal</div>
+                        <div class="terminal-actions">
+                            <button id="terminal-expand" class="btn btn-secondary">Expand</button>
+                        </div>
+                    </div>
+                    <div class="terminal-content">
+                        <div>Welcome to the Portfolio Terminal</div>
+                        <div>Type 'help' for a list of commands</div>
+                        <div class="terminal-input">
+                            <span class="terminal-prompt">></span>
+                            <input type="text" class="terminal-command" placeholder="Enter command...">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="notification-container" id="notification-container"></div>
+
+    <!-- TradingView Widget -->
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    
+    <!-- Chart.js for Portfolio Chart -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Custom Scripts -->
+    <script src="wallet-connection-sync.js"></script>
+    <script src="real-time-market-data.js"></script>
+    <script src="ai-debug-agent.js"></script>
+    <script src="portfolio-analytics-fixed.js"></script>
+    <script src="tradingview-direct-integration-fixed.js"></script>
+    <script src="fixed-trade-execution.js"></script>
+    <script src="ai-trading-agent-enhanced.js"></script>
+
+    <script>
+        // Initialize TradingView Widget
+        document.addEventListener('DOMContentLoaded', function() {
+            // Create TradingView widget
+            new TradingView.widget({
+                "width": "100%",
+                "height": "100%",
+                "symbol": "BINANCE:AVAXUSDT",
+                "interval": "60",
+                "timezone": "Etc/UTC",
+                "theme": "dark",
+                "style": "1",
+                "locale": "en",
+                "toolbar_bg": "#242a38",
+                "enable_publishing": false,
+                "hide_top_toolbar": false,
+                "hide_legend": false,
+                "save_image": false,
+                "container_id": "tradingview-chart-container",
+                "studies": [
+                    "MASimple@tv-basicstudies",
+                    "RSI@tv-basicstudies",
+                    "MACD@tv-basicstudies"
+                ]
+            });
+
+            // Initialize Portfolio Chart
+            const portfolioChartContainer = document.getElementById('portfolio-chart-container');
+            if (portfolioChartContainer) {
+                // Create canvas for chart
+                const canvas = document.createElement('canvas');
+                canvas.id = 'portfolio-chart';
+                portfolioChartContainer.appendChild(canvas);
+                
+                // Generate initial data
+                const labels = [];
+                const data = [];
+                const now = new Date();
+                
+                for (let i = 30; i >= 0; i--) {
+                    const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+                    labels.push(date.toLocaleDateString());
+                    data.push(1000);
+                }
+                
+                // Create chart
+                const ctx = canvas.getContext('2d');
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Portfolio Value',
+                            data: data,
+                            borderColor: '#4e74ff',
+                            backgroundColor: 'rgba(78, 116, 255, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                grid: {
+                                    color: 'rgba(255, 255, 255, 0.1)'
+                                },
+                                ticks: {
+                                    color: 'rgba(255, 255, 255, 0.7)',
+                                    maxRotation: 0,
+                                    autoSkip: true,
+                                    maxTicksLimit: 10
+                                }
+                            },
+                            y: {
+                                grid: {
+                                    color: 'rgba(255, 255, 255, 0.1)'
+                                },
+                                ticks: {
+                                    color: 'rgba(255, 255, 255, 0.7)',
+                                    callback: function(value) {
+                                        return '$' + value.toFixed(2);
+                                    }
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return '$' + context.raw.toFixed(2);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Set up timeframe option selection
+            const timeframeOptions = document.querySelectorAll('.timeframe-option');
+            const timeframeDescription = document.querySelector('.timeframe-description');
+            
+            timeframeOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    // Remove active class from all options
+                    timeframeOptions.forEach(opt => opt.classList.remove('active'));
+                    
+                    // Add active class to clicked option
+                    this.classList.add('active');
+                    
+                    // Update description based on selected timeframe
+                    const timeframeId = this.id;
+                    
+                    if (timeframeId === 'scalping') {
+                        timeframeDescription.innerHTML = `
+                            <strong>Description:</strong> Very short-term trades (minutes to hours)
+                            <br>
+                            <strong>Target Profit:</strong> 3-5%
+                            <br>
+                            <strong>Stop Loss:</strong> 2-3%
+                            <br>
+                            <strong>Max Trades/Day:</strong> 20
+                        `;
+                    } else if (timeframeId === 'day-trading') {
+                        timeframeDescription.innerHTML = `
+                            <strong>Description:</strong> Intraday trades (completed within the same day)
+                            <br>
+                            <strong>Target Profit:</strong> 5-10%
+                            <br>
+                            <strong>Stop Loss:</strong> 3-5%
+                            <br>
+                            <strong>Max Trades/Day:</strong> 5
+                        `;
+                    } else if (timeframeId === 'swing-trading') {
+                        timeframeDescription.innerHTML = `
+                            <strong>Description:</strong> Multi-day to multi-week positions
+                            <br>
+                            <strong>Target Profit:</strong> 10-20%
+                            <br>
+                            <strong>Stop Loss:</strong> 5-10%
+                            <br>
+                            <strong>Max Trades/Week:</strong> 3
+                        `;
+                    }
+                });
+            });
+            
+            // Set up leverage option selection
+            const leverageOptions = document.querySelectorAll('.leverage-option');
+            
+            leverageOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    // Remove active class from all options
+                    leverageOptions.forEach(opt => opt.classList.remove('active'));
+                    
+                    // Add active class to clicked option
+                    this.classList.add('active');
+                });
+            });
+            
+            // Set up strategy option selection
+            const strategyOptions = document.querySelectorAll('.strategy-option');
+            const strategyDescription = document.querySelector('.strategy-description');
+            
+            strategyOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    // Remove active class from all options
+                    strategyOptions.forEach(opt => opt.classList.remove('active'));
+                    
+                    // Add active class to clicked option
+                    this.classList.add('active');
+                    
+                    // Update description based on selected strategy
+                    const strategyValue = this.querySelector('input').value;
+                    
+                    if (strategyValue === 'ai') {
+                        strategyDescription.innerHTML = `
+                            <strong>Strategy:</strong> AI Trading Agent
+                            <br>
+                            <strong>Description:</strong> Uses AI to analyze market conditions and execute trades automatically based on Market Cipher and Lux Algo indicators.
+                            <br>
+                            <strong>Risk Level:</strong> Medium
+                        `;
+                    } else if (strategyValue === 'manual') {
+                        strategyDescription.innerHTML = `
+                            <strong>Strategy:</strong> Manual Trading
+                            <br>
+                            <strong>Description:</strong> You control when to enter and exit trades based on your own analysis.
+                            <br>
+                            <strong>Risk Level:</strong> Depends on your trading decisions
+                        `;
+                    }
+                });
+            });
+            
+            // Set up trading buttons
+            const startTradingBtn = document.getElementById('start-trading');
+            const stopTradingBtn = document.getElementById('stop-trading');
+            
+            startTradingBtn.addEventListener('click', function() {
+                if (!window.walletConnectionSync || !window.walletConnectionSync.isConnected) {
+                    showNotification('Please connect your wallet first', 'error');
+                    return;
+                }
+                
+                // Disable start button and enable stop button
+                startTradingBtn.disabled = true;
+                stopTradingBtn.disabled = false;
+                
+                // Show notification
+                showNotification('Trading started', 'success');
+                
+                // Add to system log
+                addToSystemLog('Trading started');
+                
+                // Add to trading history
+                addToTradingHistory('Trading started');
+                
+                // Update agent status
+                document.querySelector('#agent-status').innerHTML = `
+                    <div><strong>Status:</strong> <span style="color: var(--success-color);">Active</span></div>
+                    <div><strong>Last Signal:</strong> Scanning market...</div>
+                    <div><strong>Confidence:</strong> Calculating...</div>
+                    <div><strong>Market Trend:</strong> Analyzing...</div>
+                `;
+                
+                // Start simulated trading after a delay
+                setTimeout(simulateTrading, 5000);
+            });
+            
+            stopTradingBtn.addEventListener('click', function() {
+                // Enable start button and disable stop button
+                startTradingBtn.disabled = false;
+                stopTradingBtn.disabled = true;
+                
+                // Show notification
+                showNotification('Trading stopped', 'info');
+                
+                // Add to system log
+                addToSystemLog('Trading stopped');
+                
+                // Add to trading history
+                addToTradingHistory('Trading stopped');
+                
+                // Update agent status
+                document.querySelector('#agent-status').innerHTML = `
+                    <div><strong>Status:</strong> Ready</div>
+                    <div><strong>Last Signal:</strong> None</div>
+                    <div><strong>Confidence:</strong> 0%</div>
+                    <div><strong>Market Trend:</strong> Neutral</div>
+                `;
+                
+                // Stop simulated trading
+                clearTimeout(window.tradingSimulationTimeout);
+            });
+            
+            // Set up terminal expand button
+            const terminalExpandBtn = document.getElementById('terminal-expand');
+            const terminalContent = document.querySelector('.terminal-content');
+            
+            terminalExpandBtn.addEventListener('click', function() {
+                if (terminalContent.style.height === '400px') {
+                    terminalContent.style.height = '200px';
+                    terminalExpandBtn.textContent = 'Expand';
+                } else {
+                    terminalContent.style.height = '400px';
+                    terminalExpandBtn.textContent = 'Collapse';
+                }
+            });
+            
+            // Set up terminal command input
+            const terminalCommand = document.querySelector('.terminal-command');
+            
+            terminalCommand.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    const command = this.value.trim();
+                    
+                    if (command) {
+                        // Add command to terminal
+                        const commandElement = document.createElement('div');
+                        commandElement.innerHTML = `<span class="terminal-prompt">></span> ${command}`;
+                        terminalContent.insertBefore(commandElement, terminalContent.querySelector('.terminal-input'));
+                        
+                        // Process command
+                        processTerminalCommand(command);
+                        
+                        // Clear input
+                        this.value = '';
+                    }
+                }
+            });
+            
+            // Function to process terminal commands
+            function processTerminalCommand(command) {
+                let response = '';
+                
+                switch (command.toLowerCase()) {
+                    case 'help':
+                        response = `
+                            Available commands:
+                            - help: Show this help message
+                            - status: Show portfolio status
+                            - balance: Show wallet balance
+                            - trades: Show recent trades
+                            - performance: Show trading performance
+                            - clear: Clear terminal
+                        `;
+                        break;
+                    case 'status':
+                        response = `
+                            Portfolio Status:
+                            - Value: $1,000.00
+                            - Daily P/L: $0.00 (0.00%)
+                            - Open Positions: 0
+                            - Available Margin: $1,000.00
+                        `;
+                        break;
+                    case 'balance':
+                        const balance = window.walletConnectionSync && window.walletConnectionSync.walletBalance ? 
+                            window.walletConnectionSync.walletBalance : '0.000 ETH';
+                        response = `
+                            Wallet Balance:
+                            - ${balance}
+                            - USDC: 1,000.00
+                            - AVAX: 0.00
+                        `;
+                        break;
+                    case 'trades':
+                        response = `
+                            Recent Trades:
+                            - No trades yet
+                        `;
+                        break;
+                    case 'performance':
+                        response = `
+                            Trading Performance:
+                            - Win Rate: 0.00%
+                            - Profit Factor: 0.00
+                            - Max Drawdown: 0.00%
+                            - Total Trades: 0
+                            - Profitable Trades: 0
+                            - Losing Trades: 0
+                        `;
+                        break;
+                    case 'clear':
+                        // Clear terminal except for input
+                        const input = terminalContent.querySelector('.terminal-input');
+                        terminalContent.innerHTML = '';
+                        terminalContent.appendChild(input);
+                        return;
+                    default:
+                        response = `Unknown command: ${command}. Type 'help' for available commands.`;
+                }
+                
+                // Add response to terminal
+                const responseElement = document.createElement('div');
+                responseElement.innerHTML = response;
+                terminalContent.insertBefore(responseElement, terminalContent.querySelector('.terminal-input'));
+                
+                // Scroll to bottom
+                terminalContent.scrollTop = terminalContent.scrollHeight;
+            }
+            
+            // Function to add entry to system log
+            function addToSystemLog(message) {
+                const systemLog = document.getElementById('system-log');
+                if (systemLog) {
+                    const logEntry = document.createElement('div');
+                    logEntry.className = 'log-entry';
+                    
+                    const timestamp = document.createElement('span');
+                    timestamp.className = 'log-time';
+                    timestamp.textContent = new Date().toLocaleTimeString();
+                    
+                    const logMessage = document.createElement('span');
+                    logMessage.textContent = message;
+                    
+                    logEntry.appendChild(timestamp);
+                    logEntry.appendChild(logMessage);
+                    systemLog.appendChild(logEntry);
+                    
+                    // Scroll to bottom
+                    systemLog.scrollTop = systemLog.scrollHeight;
+                }
+            }
+            
+            // Function to add entry to trading history
+            function addToTradingHistory(message) {
+                const tradingHistory = document.getElementById('trading-history');
+                if (tradingHistory) {
+                    // Clear "No trades yet" message if it exists
+                    if (tradingHistory.textContent.includes('No trades yet')) {
+                        tradingHistory.innerHTML = '';
+                    }
+                    
+                    const logEntry = document.createElement('div');
+                    logEntry.className = 'log-entry';
+                    
+                    const timestamp = document.createElement('span');
+                    timestamp.className = 'log-time';
+                    timestamp.textContent = new Date().toLocaleTimeString();
+                    
+                    const logMessage = document.createElement('span');
+                    logMessage.textContent = message;
+                    
+                    logEntry.appendChild(timestamp);
+                    logEntry.appendChild(logMessage);
+                    tradingHistory.appendChild(logEntry);
+                    
+                    // Scroll to bottom
+                    tradingHistory.scrollTop = tradingHistory.scrollHeight;
+                }
+            }
+            
+            // Function to show notification
+            function showNotification(message, type = 'info') {
+                const notificationContainer = document.getElementById('notification-container');
+                
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+                notification.setAttribute('data-time', Date.now().toString());
+                
+                const notificationTitle = document.createElement('div');
+                notificationTitle.className = 'notification-title';
+                
+                switch (type) {
+                    case 'success':
+                        notificationTitle.textContent = 'Success';
+                        break;
+                    case 'error':
+                        notificationTitle.textContent = 'Error';
+                        break;
+                    case 'warning':
+                        notificationTitle.textContent = 'Warning';
+                        break;
+                    default:
+                        notificationTitle.textContent = 'Information';
+                }
+                
+                const notificationMessage = document.createElement('div');
+                notificationMessage.className = 'notification-message';
+                notificationMessage.textContent = message;
+                
+                notification.appendChild(notificationTitle);
+                notification.appendChild(notificationMessage);
+                notificationContainer.appendChild(notification);
+                
+                // Remove notification after 5 seconds
+                setTimeout(() => {
+                    notification.classList.add('fade-out');
+                    setTimeout(() => {
+                        notification.remove();
+                    }, 500);
+                }, 5000);
+            }
+            
+            // Function to simulate trading activity
+            function simulateTrading() {
+                // Generate random trading signal
+                const signals = ['BUY', 'SELL', 'HOLD'];
+                const signal = signals[Math.floor(Math.random() * signals.length)];
+                
+                // Generate random confidence
+                const confidence = Math.floor(Math.random() * 40) + 60; // 60-99%
+                
+                // Generate random trend
+                const trends = ['Bullish', 'Bearish', 'Neutral', 'Strongly Bullish', 'Strongly Bearish'];
+                const trend = trends[Math.floor(Math.random() * trends.length)];
+                
+                // Update agent status
+                document.querySelector('#agent-status').innerHTML = `
+                    <div><strong>Status:</strong> <span style="color: var(--success-color);">Active</span></div>
+                    <div><strong>Last Signal:</strong> ${signal}</div>
+                    <div><strong>Confidence:</strong> ${confidence}%</div>
+                    <div><strong>Market Trend:</strong> ${trend}</div>
+                `;
+                
+                // Add to system log
+                addToSystemLog(`Generated ${signal} signal with ${confidence}% confidence`);
+                
+                // If signal is BUY or SELL, execute trade
+                if (signal === 'BUY' || signal === 'SELL') {
+                    // Generate random price
+                    const basePrice = 25.16;
+                    const priceVariation = (Math.random() * 0.1) - 0.05; // -5% to +5%
+                    const price = basePrice * (1 + priceVariation);
+                    
+                    // Generate random size
+                    const size = Math.floor(Math.random() * 10) + 1; // 1-10
+                    
+                    // Calculate value
+                    const value = price * size;
+                    
+                    // Generate random leverage
+                    const leverageOptions = [10, 15, 20, 25, 30, 35, 40, 45, 50, 100];
+                    const leverage = leverageOptions[Math.floor(Math.random() * leverageOptions.length)];
+                    
+                    // Add to trading history
+                    addToTradingHistory(`${signal} ${size} AVAX at $${price.toFixed(2)} with ${leverage}x leverage`);
+                    
+                    // Show notification
+                    showNotification(`${signal} order executed: ${size} AVAX at $${price.toFixed(2)}`, 'success');
+                    
+                    // Update portfolio metrics
+                    updatePortfolioMetrics();
+                }
+                
+                // Schedule next trading signal
+                const nextInterval = Math.floor(Math.random() * 10000) + 5000; // 5-15 seconds
+                window.tradingSimulationTimeout = setTimeout(simulateTrading, nextInterval);
+            }
+            
+            // Function to update portfolio metrics
+            function updatePortfolioMetrics() {
+                // Generate random portfolio value change
+                const baseValue = 1000;
+                const valueChange = (Math.random() * 20) - 5; // -5 to +15
+                const newValue = baseValue + valueChange;
+                
+                // Calculate daily P/L
+                const dailyPL = valueChange;
+                const dailyPLPercent = (dailyPL / baseValue) * 100;
+                
+                // Generate random win rate
+                const winRate = Math.floor(Math.random() * 30) + 50; // 50-79%
+                
+                // Generate random profit factor
+                const profitFactor = (Math.random() * 1) + 1.2; // 1.2-2.2
+                
+                // Generate random max drawdown
+                const maxDrawdown = Math.floor(Math.random() * 5) + 1; // 1-5%
+                
+                // Generate random total trades
+                const totalTrades = Math.floor(Math.random() * 10) + 1; // 1-10
+                
+                // Update portfolio metrics
+                document.querySelector('.portfolio-metrics').innerHTML = `
+                    <div class="metric-item">
+                        <div class="metric-label">Portfolio Value</div>
+                        <div class="metric-value">$${newValue.toFixed(2)}</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">Daily P/L</div>
+                        <div class="metric-value" style="color: ${dailyPL >= 0 ? 'var(--success-color)' : 'var(--danger-color)'}">
+                            $${dailyPL.toFixed(2)} (${dailyPLPercent.toFixed(2)}%)
+                        </div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">Win Rate</div>
+                        <div class="metric-value">${winRate.toFixed(2)}%</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">Profit Factor</div>
+                        <div class="metric-value">${profitFactor.toFixed(2)}</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">Max Drawdown</div>
+                        <div class="metric-value">${maxDrawdown.toFixed(2)}%</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">Total Trades</div>
+                        <div class="metric-value">${totalTrades}</div>
+                    </div>
+                `;
+                
+                // Update portfolio chart
+                updatePortfolioChart(newValue);
+            }
+            
+            // Function to update portfolio chart
+            function updatePortfolioChart(newValue) {
+                const chart = Chart.getChart('portfolio-chart');
+                if (chart) {
+                    // Add new data point
+                    const lastDate = new Date();
+                    chart.data.labels.push(lastDate.toLocaleDateString());
+                    chart.data.datasets[0].data.push(newValue);
+                    
+                    // Remove oldest data point if more than 31 points
+                    if (chart.data.labels.length > 31) {
+                        chart.data.labels.shift();
+                        chart.data.datasets[0].data.shift();
+                    }
+                    
+                    // Update chart
+                    chart.update();
+                }
+            }
+            
+            // Simulate market data updates
+            function updateMarketData() {
+                // Show refresh spinner
+                document.getElementById('market-data-refresh').style.display = 'inline-block';
+                
+                // Generate random price changes
+                setTimeout(() => {
+                    // Hide refresh spinner
+                    document.getElementById('market-data-refresh').style.display = 'none';
+                    
+                    // Update AVAX/USDT price
+                    const basePrice = 25.16;
+                    const priceChange = (Math.random() * 0.02) - 0.01; // -1% to +1%
+                    const newPrice = basePrice * (1 + priceChange);
+                    const priceChangePercent = priceChange * 100;
+                    
+                    document.querySelector('.market-item:nth-child(1) .market-item-value').innerHTML = 
+                        `$${newPrice.toFixed(2)} <span class="market-item-change ${priceChangePercent >= 0 ? 'positive' : 'negative'}">
+                            ${priceChangePercent >= 0 ? '+' : ''}${priceChangePercent.toFixed(2)}%
+                        </span>`;
+                    
+                    // Update 24h Volume
+                    const baseVolume = 155.3;
+                    const volumeChange = (Math.random() * 0.04) - 0.01; // -1% to +3%
+                    const newVolume = baseVolume * (1 + volumeChange);
+                    const volumeChangePercent = volumeChange * 100;
+                    
+                    document.querySelector('.market-item:nth-child(2) .market-item-value').innerHTML = 
+                        `$${newVolume.toFixed(1)}M <span class="market-item-change ${volumeChangePercent >= 0 ? 'positive' : 'negative'}">
+                            ${volumeChangePercent >= 0 ? '+' : ''}${volumeChangePercent.toFixed(2)}%
+                        </span>`;
+                    
+                    // Update Funding Rate
+                    const baseFunding = 0.010;
+                    const fundingChange = (Math.random() * 0.002) - 0.001; // -0.1% to +0.1%
+                    const newFunding = baseFunding + fundingChange;
+                    const fundingChangePercent = fundingChange * 100;
+                    
+                    document.querySelector('.market-item:nth-child(3) .market-item-value').innerHTML = 
+                        `${newFunding.toFixed(3)}% <span class="market-item-change ${fundingChangePercent >= 0 ? 'positive' : 'negative'}">
+                            ${fundingChangePercent >= 0 ? '+' : ''}${fundingChangePercent.toFixed(3)}%
+                        </span>`;
+                    
+                    // Update Open Interest
+                    const baseInterest = 42.9;
+                    const interestChange = (Math.random() * 0.04) - 0.01; // -1% to +3%
+                    const newInterest = baseInterest * (1 + interestChange);
+                    const interestChangePercent = interestChange * 100;
+                    
+                    document.querySelector('.market-item:nth-child(4) .market-item-value').innerHTML = 
+                        `$${newInterest.toFixed(1)}M <span class="market-item-change ${interestChangePercent >= 0 ? 'positive' : 'negative'}">
+                            ${interestChangePercent >= 0 ? '+' : ''}${interestChangePercent.toFixed(2)}%
+                        </span>`;
+                    
+                    // Schedule next update
+                    setTimeout(updateMarketData, 5000);
+                }, 1000);
+            }
+            
+            // Start market data updates
+            updateMarketData();
+        });
+    </script>
+</body>
+</html>
