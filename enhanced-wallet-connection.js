@@ -1,498 +1,708 @@
 /**
- * Enhanced Wallet Connection for GitHub Pages
+ * Enhanced Wallet Connection Module for Antarctic Exchange
  * 
- * This script provides robust wallet detection and connection functionality
- * specifically optimized for GitHub Pages deployment with improved detection
- * and UI synchronization.
+ * This module provides robust wallet connection for the trading bot,
+ * with specific optimizations for Antarctic Exchange and MetaMask integration.
  */
 
-// Create global wallet connection object
-window.walletConnectionSync = {
-    isConnected: false,
-    walletAddress: null,
-    walletNetwork: null,
-    walletBalance: null,
-    detectionInterval: null,
+class EnhancedWalletConnection {
+    constructor() {
+        this.isConnected = false;
+        this.address = null;
+        this.chainId = null;
+        this.provider = null;
+        this.signer = null;
+        this.networkName = null;
+        this.balance = null;
+        this.connectionStatus = 'disconnected'; // disconnected, connecting, connected, error
+        this.errorMessage = null;
+        this.connectionCallbacks = [];
+        this.detectionInterval = null;
+        this.reconnectAttempts = 0;
+        this.maxReconnectAttempts = 5;
+        
+        // Supported networks
+        this.supportedNetworks = {
+            42161: {
+                name: 'Arbitrum',
+                currency: 'ETH',
+                rpcUrl: 'https://arb1.arbitrum.io/rpc',
+                explorerUrl: 'https://arbiscan.io'
+            },
+            43114: {
+                name: 'Avalanche C-Chain',
+                currency: 'AVAX',
+                rpcUrl: 'https://api.avax.network/ext/bc/C/rpc',
+                explorerUrl: 'https://snowtrace.io'
+            },
+            1: {
+                name: 'Ethereum',
+                currency: 'ETH',
+                rpcUrl: 'https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161',
+                explorerUrl: 'https://etherscan.io'
+            }
+        };
+        
+        // Default to Avalanche C-Chain
+        this.preferredChainId = 43114;
+    }
     
-    // Initialize wallet connection
-    init: function() {
-        console.log('Initializing enhanced wallet connection module...');
-        this.detectWallet();
+    /**
+     * Initialize wallet connection
+     */
+    async initialize() {
+        console.log('Initializing enhanced wallet connection...');
+        
+        // Check for existing connection
+        await this.checkConnection();
+        
+        // Set up continuous wallet detection
+        this.setupContinuousDetection();
+        
+        // Set up event listeners
         this.setupEventListeners();
         
-        // Set up continuous wallet detection to handle delayed injection
-        this.setupContinuousDetection();
-    },
+        return {
+            success: true,
+            message: 'Wallet connection initialized',
+            isConnected: this.isConnected,
+            address: this.address,
+            networkName: this.networkName
+        };
+    }
     
-    // Set up continuous wallet detection
-    setupContinuousDetection: function() {
-        console.log('Setting up continuous wallet detection...');
-        
+    /**
+     * Check for existing wallet connection
+     */
+    async checkConnection() {
+        try {
+            // Check if MetaMask is installed
+            if (window.ethereum) {
+                this.provider = window.ethereum;
+                
+                // Check if already connected
+                const accounts = await this.provider.request({ method: 'eth_accounts' });
+                
+                if (accounts && accounts.length > 0) {
+                    // Get network information
+                    const chainId = await this.provider.request({ method: 'eth_chainId' });
+                    
+                    // Set connection info
+                    this.address = accounts[0];
+                    this.chainId = parseInt(chainId, 16);
+                    this.networkName = this.getNetworkName(this.chainId);
+                    this.isConnected = true;
+                    this.connectionStatus = 'connected';
+                    
+                    // Get balance
+                    await this.updateBalance();
+                    
+                    console.log(`Wallet already connected: ${this.address} on ${this.networkName}`);
+                    
+                    // Update UI
+                    this.updateConnectionUI();
+                    
+                    // Notify callbacks
+                    this.notifyConnectionCallbacks({
+                        connected: true,
+                        address: this.address,
+                        chainId: this.chainId,
+                        networkName: this.networkName
+                    });
+                    
+                    return true;
+                }
+            }
+            
+            // Not connected
+            this.updateConnectionUI();
+            return false;
+        } catch (error) {
+            console.error('Error checking wallet connection:', error);
+            this.connectionStatus = 'error';
+            this.errorMessage = error.message || 'Error checking connection';
+            this.updateConnectionUI();
+            return false;
+        }
+    }
+    
+    /**
+     * Set up continuous wallet detection
+     */
+    setupContinuousDetection() {
         // Clear any existing interval
         if (this.detectionInterval) {
             clearInterval(this.detectionInterval);
         }
         
-        // Check for wallet every 2 seconds until detected
+        // Set up interval to check for wallet
         this.detectionInterval = setInterval(() => {
-            // If wallet is already detected and connected, clear interval
-            if (window.ethereum && this.isConnected) {
-                clearInterval(this.detectionInterval);
-                return;
-            }
-            
-            // Check if wallet is now available (handles delayed injection)
-            if (window.ethereum && !this.walletDetected) {
-                console.log('Wallet detected during continuous check');
-                this.walletDetected = true;
-                this.updateWalletUI('detected');
-                this.checkConnection();
-                
-                // If wallet is detected but not connected, keep interval for connection changes
-                if (!this.isConnected) {
-                    console.log('Wallet detected but not connected, continuing checks');
-                } else {
-                    clearInterval(this.detectionInterval);
-                }
-            }
-        }, 2000);
-    },
-    
-    // Detect if wallet is installed
-    detectWallet: function() {
-        console.log('Detecting wallet...');
-        
-        // Check for MetaMask or other EIP-1193 providers
-        if (window.ethereum) {
-            console.log('Ethereum provider detected');
-            
-            // Check specifically for MetaMask
-            if (window.ethereum.isMetaMask) {
+            // Check if MetaMask is installed
+            if (window.ethereum && !this.provider) {
                 console.log('MetaMask detected');
-            } else {
-                console.log('Non-MetaMask Ethereum provider detected');
-            }
-            
-            this.walletDetected = true;
-            this.updateWalletUI('detected');
-            this.checkConnection();
-        } else {
-            console.log('No Ethereum provider detected');
-            this.walletDetected = false;
-            this.updateWalletUI('not-detected');
-            
-            // Check if running on mobile and suggest mobile wallet options
-            if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-                console.log('Mobile device detected, suggesting mobile wallet options');
-                this.suggestMobileWallets();
-            }
-        }
-    },
-    
-    // Suggest mobile wallet options
-    suggestMobileWallets: function() {
-        const connectMetaMaskBtn = document.getElementById('connect-metamask');
-        if (connectMetaMaskBtn) {
-            connectMetaMaskBtn.textContent = 'Get Mobile Wallet';
-            connectMetaMaskBtn.onclick = function() {
-                // Show notification with mobile wallet options
-                if (window.showNotification) {
-                    window.showNotification('For mobile: Try MetaMask Mobile, Trust Wallet, or Coinbase Wallet', 'info');
-                }
+                this.provider = window.ethereum;
+                this.updateConnectionUI();
                 
-                // Open MetaMask mobile page
-                window.open('https://metamask.io/download/', '_blank');
-            };
-        }
-    },
+                // Set up event listeners
+                this.setupEventListeners();
+                
+                // Check for existing connection
+                this.checkConnection();
+            }
+        }, 1000); // Check every second
+    }
     
-    // Setup event listeners for wallet
-    setupEventListeners: function() {
-        console.log('Setting up wallet event listeners...');
+    /**
+     * Set up wallet event listeners
+     */
+    setupEventListeners() {
+        if (!this.provider) return;
         
-        // Connect wallet button
-        const connectWalletBtn = document.getElementById('connect-wallet');
-        if (connectWalletBtn) {
-            connectWalletBtn.addEventListener('click', () => this.connectWallet());
-        }
-        
-        // Connect MetaMask button
-        const connectMetaMaskBtn = document.getElementById('connect-metamask');
-        if (connectMetaMaskBtn) {
-            connectMetaMaskBtn.addEventListener('click', () => this.connectWallet());
-        }
-        
-        // Listen for account changes if ethereum provider exists
-        if (window.ethereum) {
-            // Listen for account changes
-            window.ethereum.on('accountsChanged', (accounts) => {
-                console.log('Accounts changed:', accounts);
-                if (accounts.length > 0) {
-                    this.handleAccountChange(accounts[0]);
-                } else {
-                    this.handleDisconnect();
-                }
-            });
+        // Account changed
+        this.provider.on('accountsChanged', (accounts) => {
+            console.log('Accounts changed:', accounts);
             
-            // Listen for chain changes
-            window.ethereum.on('chainChanged', (chainId) => {
-                console.log('Chain changed:', chainId);
-                this.handleChainChange(chainId);
-            });
-            
-            // Listen for connect events
-            window.ethereum.on('connect', (connectInfo) => {
-                console.log('Connected to wallet:', connectInfo);
-            });
-            
-            // Listen for disconnect events
-            window.ethereum.on('disconnect', (error) => {
-                console.log('Disconnected from wallet:', error);
+            if (accounts.length === 0) {
+                // Disconnected
                 this.handleDisconnect();
-            });
-        }
-    },
-    
-    // Check if already connected
-    checkConnection: async function() {
-        console.log('Checking existing connection...');
-        
-        if (!window.ethereum) return;
-        
-        try {
-            // Request accounts without prompting user
-            const accounts = await window.ethereum.request({
-                method: 'eth_accounts'
-            });
-            
-            if (accounts.length > 0) {
-                console.log('Already connected to account:', accounts[0]);
-                this.handleAccountChange(accounts[0]);
             } else {
-                console.log('No connected accounts found');
+                // Account changed
+                this.address = accounts[0];
+                this.updateBalance();
+                this.updateConnectionUI();
+                
+                // Notify callbacks
+                this.notifyConnectionCallbacks({
+                    connected: true,
+                    address: this.address,
+                    chainId: this.chainId,
+                    networkName: this.networkName
+                });
             }
-        } catch (error) {
-            console.error('Error checking connection:', error);
-        }
-    },
+        });
+        
+        // Chain changed
+        this.provider.on('chainChanged', (chainId) => {
+            console.log('Chain changed:', chainId);
+            
+            this.chainId = parseInt(chainId, 16);
+            this.networkName = this.getNetworkName(this.chainId);
+            this.updateBalance();
+            this.updateConnectionUI();
+            
+            // Notify callbacks
+            this.notifyConnectionCallbacks({
+                connected: true,
+                address: this.address,
+                chainId: this.chainId,
+                networkName: this.networkName
+            });
+        });
+        
+        // Disconnect
+        this.provider.on('disconnect', (error) => {
+            console.log('Wallet disconnected:', error);
+            this.handleDisconnect();
+        });
+    }
     
-    // Connect wallet
-    connectWallet: async function() {
-        console.log('Connecting wallet...');
-        
-        if (!window.ethereum) {
-            if (window.showNotification) {
-                window.showNotification('Please install MetaMask to connect your wallet', 'error');
-            }
-            return;
-        }
-        
+    /**
+     * Connect wallet
+     */
+    async connect() {
         try {
-            // Show loading state
-            this.updateWalletUI('connecting');
+            this.connectionStatus = 'connecting';
+            this.updateConnectionUI();
+            
+            // Check if MetaMask is installed
+            if (!window.ethereum) {
+                this.connectionStatus = 'error';
+                this.errorMessage = 'MetaMask not installed';
+                this.updateConnectionUI();
+                
+                // Show install MetaMask message
+                this.showNotification('Please install MetaMask to connect your wallet', 'error');
+                return false;
+            }
+            
+            this.provider = window.ethereum;
             
             // Request accounts
-            const accounts = await window.ethereum.request({
-                method: 'eth_requestAccounts'
-            });
+            const accounts = await this.provider.request({ method: 'eth_requestAccounts' });
             
-            if (accounts.length > 0) {
-                console.log('Connected to account:', accounts[0]);
-                this.handleAccountChange(accounts[0]);
-            } else {
-                console.log('No accounts returned');
-                this.updateWalletUI('error');
+            if (accounts && accounts.length > 0) {
+                // Get network information
+                const chainId = await this.provider.request({ method: 'eth_chainId' });
                 
-                if (window.showNotification) {
-                    window.showNotification('Failed to connect wallet', 'error');
+                // Set connection info
+                this.address = accounts[0];
+                this.chainId = parseInt(chainId, 16);
+                this.networkName = this.getNetworkName(this.chainId);
+                this.isConnected = true;
+                this.connectionStatus = 'connected';
+                
+                // Get balance
+                await this.updateBalance();
+                
+                console.log(`Wallet connected: ${this.address} on ${this.networkName}`);
+                
+                // Check if on supported network
+                if (!this.supportedNetworks[this.chainId]) {
+                    this.showNotification(`Connected to unsupported network: ${this.networkName}. Please switch to Avalanche C-Chain, Arbitrum, or Ethereum.`, 'warning');
                 }
+                
+                // Update UI
+                this.updateConnectionUI();
+                
+                // Notify callbacks
+                this.notifyConnectionCallbacks({
+                    connected: true,
+                    address: this.address,
+                    chainId: this.chainId,
+                    networkName: this.networkName
+                });
+                
+                return true;
+            } else {
+                this.connectionStatus = 'error';
+                this.errorMessage = 'No accounts found';
+                this.updateConnectionUI();
+                
+                this.showNotification('No accounts found. Please unlock your wallet and try again.', 'error');
+                return false;
             }
         } catch (error) {
             console.error('Error connecting wallet:', error);
-            this.updateWalletUI('error');
             
-            // Handle user rejected request
-            if (error.code === 4001) {
-                if (window.showNotification) {
-                    window.showNotification('You rejected the connection request', 'warning');
-                }
-            } else {
-                if (window.showNotification) {
-                    window.showNotification('Error connecting wallet: ' + error.message, 'error');
-                }
-            }
-        }
-    },
-    
-    // Handle account change
-    handleAccountChange: async function(account) {
-        console.log('Handling account change:', account);
-        
-        this.walletAddress = account;
-        this.isConnected = true;
-        
-        // Update UI
-        this.updateWalletUI('connected');
-        
-        // Get network
-        await this.getNetwork();
-        
-        // Get balance
-        await this.getBalance();
-        
-        // Show notification
-        if (window.showNotification) {
-            window.showNotification('Wallet connected successfully', 'success');
-        }
-    },
-    
-    // Handle chain change
-    handleChainChange: async function(chainId) {
-        console.log('Handling chain change:', chainId);
-        
-        // Update network
-        await this.getNetwork();
-        
-        // Update balance
-        await this.getBalance();
-        
-        // Show notification
-        if (window.showNotification) {
-            window.showNotification('Network changed to ' + this.walletNetwork, 'info');
-        }
-    },
-    
-    // Handle disconnect
-    handleDisconnect: function() {
-        console.log('Handling disconnect');
-        
-        this.isConnected = false;
-        this.walletAddress = null;
-        this.walletNetwork = null;
-        this.walletBalance = null;
-        
-        // Update UI
-        this.updateWalletUI('disconnected');
-        
-        // Show notification
-        if (window.showNotification) {
-            window.showNotification('Wallet disconnected', 'info');
-        }
-    },
-    
-    // Get current network
-    getNetwork: async function() {
-        console.log('Getting network...');
-        
-        if (!window.ethereum || !this.isConnected) return;
-        
-        try {
-            const chainId = await window.ethereum.request({
-                method: 'eth_chainId'
-            });
+            this.connectionStatus = 'error';
+            this.errorMessage = error.message || 'Error connecting wallet';
+            this.updateConnectionUI();
             
-            // Convert chain ID to network name
-            switch (chainId) {
-                case '0x1':
-                    this.walletNetwork = 'Ethereum';
-                    break;
-                case '0xa4b1':
-                    this.walletNetwork = 'Arbitrum';
-                    break;
-                case '0xa86a':
-                    this.walletNetwork = 'Avalanche C-Chain';
-                    break;
-                default:
-                    this.walletNetwork = 'Unknown (' + chainId + ')';
-            }
-            
-            console.log('Current network:', this.walletNetwork);
-            
-            // Update network in UI
-            const walletNetworkElement = document.getElementById('wallet-network');
-            if (walletNetworkElement) {
-                walletNetworkElement.textContent = this.walletNetwork;
-            }
-            
-            // Update network selector
-            const networkSelect = document.getElementById('network-select');
-            if (networkSelect) {
-                switch (chainId) {
-                    case '0x1':
-                        networkSelect.value = 'ethereum';
-                        break;
-                    case '0xa4b1':
-                        networkSelect.value = 'arbitrum';
-                        break;
-                    case '0xa86a':
-                        networkSelect.value = 'avalanche';
-                        break;
-                }
-            }
-        } catch (error) {
-            console.error('Error getting network:', error);
-        }
-    },
-    
-    // Get wallet balance
-    getBalance: async function() {
-        console.log('Getting balance...');
-        
-        if (!window.ethereum || !this.isConnected || !this.walletAddress) return;
-        
-        try {
-            const balance = await window.ethereum.request({
-                method: 'eth_getBalance',
-                params: [this.walletAddress, 'latest']
-            });
-            
-            // Convert from wei to ETH
-            const ethBalance = parseInt(balance, 16) / 1e18;
-            this.walletBalance = ethBalance.toFixed(3) + ' ETH';
-            
-            console.log('Current balance:', this.walletBalance);
-            
-            // Update balance in UI
-            const walletBalanceElement = document.getElementById('wallet-balance');
-            if (walletBalanceElement) {
-                walletBalanceElement.textContent = this.walletBalance;
-            }
-        } catch (error) {
-            console.error('Error getting balance:', error);
-        }
-    },
-    
-    // Update wallet UI based on state
-    updateWalletUI: function(state) {
-        console.log('Updating wallet UI:', state);
-        
-        // Get UI elements
-        const statusIndicator = document.getElementById('status-indicator');
-        const connectionStatus = document.getElementById('connection-status');
-        const connectMetaMaskBtn = document.getElementById('connect-metamask');
-        const connectWalletBtn = document.getElementById('connect-wallet');
-        const walletDetails = document.getElementById('wallet-details');
-        
-        // Update based on state
-        switch (state) {
-            case 'detected':
-                // MetaMask is detected but not connected
-                if (statusIndicator) statusIndicator.className = 'status-indicator disconnected';
-                if (connectionStatus) connectionStatus.textContent = 'Disconnected';
-                if (connectMetaMaskBtn) {
-                    connectMetaMaskBtn.textContent = 'Connect MetaMask';
-                    connectMetaMaskBtn.className = 'btn btn-primary';
-                }
-                if (connectWalletBtn) {
-                    connectWalletBtn.textContent = 'Connect Wallet';
-                    connectWalletBtn.className = 'btn btn-primary';
-                }
-                if (walletDetails) walletDetails.style.display = 'none';
-                break;
-                
-            case 'not-detected':
-                // MetaMask is not detected
-                if (statusIndicator) statusIndicator.className = 'status-indicator disconnected';
-                if (connectionStatus) connectionStatus.textContent = 'Disconnected';
-                if (connectMetaMaskBtn) {
-                    connectMetaMaskBtn.textContent = 'Install MetaMask';
-                    connectMetaMaskBtn.className = 'btn btn-secondary';
-                    connectMetaMaskBtn.onclick = function() {
-                        window.open('https://metamask.io/download/', '_blank');
-                    };
-                }
-                if (connectWalletBtn) {
-                    connectWalletBtn.textContent = 'Install MetaMask';
-                    connectWalletBtn.className = 'btn btn-secondary';
-                    connectWalletBtn.onclick = function() {
-                        window.open('https://metamask.io/download/', '_blank');
-                    };
-                }
-                if (walletDetails) walletDetails.style.display = 'none';
-                break;
-                
-            case 'connecting':
-                // Connecting to MetaMask
-                if (statusIndicator) statusIndicator.className = 'status-indicator disconnected';
-                if (connectionStatus) connectionStatus.textContent = 'Connecting...';
-                if (connectMetaMaskBtn) {
-                    connectMetaMaskBtn.textContent = 'Connecting...';
-                    connectMetaMaskBtn.disabled = true;
-                }
-                if (connectWalletBtn) {
-                    connectWalletBtn.textContent = 'Connecting...';
-                    connectWalletBtn.disabled = true;
-                }
-                if (walletDetails) walletDetails.style.display = 'none';
-                break;
-                
-            case 'connected':
-                // Connected to MetaMask
-                if (statusIndicator) statusIndicator.className = 'status-indicator connected';
-                if (connectionStatus) connectionStatus.textContent = 'Connected';
-                if (connectMetaMaskBtn) {
-                    connectMetaMaskBtn.textContent = 'Connected';
-                    connectMetaMaskBtn.className = 'btn connected';
-                    connectMetaMaskBtn.disabled = false;
-                }
-                if (connectWalletBtn) {
-                    connectWalletBtn.textContent = 'Connected';
-                    connectWalletBtn.className = 'btn connected';
-                    connectWalletBtn.disabled = false;
-                }
-                if (walletDetails) walletDetails.style.display = 'block';
-                
-                // Update wallet address
-                const walletAddressElement = document.getElementById('wallet-address');
-                if (walletAddressElement && this.walletAddress) {
-                    const shortAddress = this.walletAddress.substring(0, 6) + '...' + this.walletAddress.substring(this.walletAddress.length - 4);
-                    walletAddressElement.textContent = shortAddress;
-                }
-                break;
-                
-            case 'disconnected':
-                // Disconnected from MetaMask
-                if (statusIndicator) statusIndicator.className = 'status-indicator disconnected';
-                if (connectionStatus) connectionStatus.textContent = 'Disconnected';
-                if (connectMetaMaskBtn) {
-                    connectMetaMaskBtn.textContent = 'Connect MetaMask';
-                    connectMetaMaskBtn.className = 'btn btn-primary';
-                    connectMetaMaskBtn.disabled = false;
-                }
-                if (connectWalletBtn) {
-                    connectWalletBtn.textContent = 'Connect Wallet';
-                    connectWalletBtn.className = 'btn btn-primary';
-                    connectWalletBtn.disabled = false;
-                }
-                if (walletDetails) walletDetails.style.display = 'none';
-                break;
-                
-            case 'error':
-                // Error connecting to MetaMask
-                if (statusIndicator) statusIndicator.className = 'status-indicator disconnected';
-                if (connectionStatus) connectionStatus.textContent = 'Connection Error';
-                if (connectMetaMaskBtn) {
-                    connectMetaMaskBtn.textContent = 'Retry Connection';
-                    connectMetaMaskBtn.className = 'btn btn-danger';
-                    connectMetaMaskBtn.disabled = false;
-                }
-                if (connectWalletBtn) {
-                    connectWalletBtn.textContent = 'Retry Connection';
-                    connectWalletBtn.className = 'btn btn-danger';
-                    connectWalletBtn.disabled = false;
-                }
-                if (walletDetails) walletDetails.style.display = 'none';
-                break;
+            this.showNotification(`Error connecting wallet: ${error.message || 'Unknown error'}`, 'error');
+            return false;
         }
     }
-};
-
-// Initialize wallet connection when DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, initializing wallet connection...');
     
-    // Initialize with a slight delay to ensure all elements are loaded
-    setTimeout(() => {
-        window.walletConnectionSync.init();
-    }, 500);
+    /**
+     * Disconnect wallet
+     */
+    async disconnect() {
+        // Note: MetaMask doesn't support programmatic disconnect
+        // We can only clear our local state
+        
+        this.handleDisconnect();
+        this.showNotification('Wallet disconnected', 'info');
+        
+        return true;
+    }
+    
+    /**
+     * Handle wallet disconnect
+     */
+    handleDisconnect() {
+        this.isConnected = false;
+        this.address = null;
+        this.chainId = null;
+        this.networkName = null;
+        this.balance = null;
+        this.connectionStatus = 'disconnected';
+        this.errorMessage = null;
+        
+        // Update UI
+        this.updateConnectionUI();
+        
+        // Notify callbacks
+        this.notifyConnectionCallbacks({
+            connected: false
+        });
+    }
+    
+    /**
+     * Switch network
+     * @param {number} chainId - Chain ID to switch to
+     */
+    async switchNetwork(chainId) {
+        if (!this.isConnected || !this.provider) {
+            this.showNotification('Please connect your wallet first', 'error');
+            return false;
+        }
+        
+        // Check if chain ID is supported
+        if (!this.supportedNetworks[chainId]) {
+            this.showNotification(`Network with chain ID ${chainId} is not supported`, 'error');
+            return false;
+        }
+        
+        try {
+            // Try to switch to the network
+            await this.provider.request({
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: '0x' + chainId.toString(16) }]
+            });
+            
+            // Update preferred chain ID
+            this.preferredChainId = chainId;
+            
+            return true;
+        } catch (error) {
+            // If the network is not added to MetaMask, add it
+            if (error.code === 4902) {
+                try {
+                    const network = this.supportedNetworks[chainId];
+                    
+                    await this.provider.request({
+                        method: 'wallet_addEthereumChain',
+                        params: [{
+                            chainId: '0x' + chainId.toString(16),
+                            chainName: network.name,
+                            nativeCurrency: {
+                                name: network.currency,
+                                symbol: network.currency,
+                                decimals: 18
+                            },
+                            rpcUrls: [network.rpcUrl],
+                            blockExplorerUrls: [network.explorerUrl]
+                        }]
+                    });
+                    
+                    // Update preferred chain ID
+                    this.preferredChainId = chainId;
+                    
+                    return true;
+                } catch (addError) {
+                    console.error('Error adding network:', addError);
+                    this.showNotification(`Error adding network: ${addError.message || 'Unknown error'}`, 'error');
+                    return false;
+                }
+            } else {
+                console.error('Error switching network:', error);
+                this.showNotification(`Error switching network: ${error.message || 'Unknown error'}`, 'error');
+                return false;
+            }
+        }
+    }
+    
+    /**
+     * Update wallet balance
+     */
+    async updateBalance() {
+        if (!this.isConnected || !this.address || !this.provider) return;
+        
+        try {
+            // Get balance
+            const balance = await this.provider.request({
+                method: 'eth_getBalance',
+                params: [this.address, 'latest']
+            });
+            
+            // Convert from wei to ether
+            this.balance = parseInt(balance, 16) / 1e18;
+            
+            // Update UI
+            this.updateBalanceUI();
+            
+            return this.balance;
+        } catch (error) {
+            console.error('Error updating balance:', error);
+            return null;
+        }
+    }
+    
+    /**
+     * Get network name from chain ID
+     * @param {number} chainId - Chain ID
+     */
+    getNetworkName(chainId) {
+        return this.supportedNetworks[chainId]?.name || `Unknown (${chainId})`;
+    }
+    
+    /**
+     * Update connection UI
+     */
+    updateConnectionUI() {
+        // Update wallet status display
+        const statusElement = document.getElementById('wallet-status');
+        const addressElement = document.getElementById('wallet-address');
+        const networkElement = document.getElementById('wallet-network');
+        const connectButton = document.getElementById('connect-wallet-btn');
+        const disconnectButton = document.getElementById('disconnect-wallet-btn');
+        const installButton = document.getElementById('install-metamask-btn');
+        
+        if (statusElement) {
+            statusElement.className = 'status-indicator';
+            
+            switch (this.connectionStatus) {
+                case 'connected':
+                    statusElement.textContent = 'Connected';
+                    statusElement.classList.add('status-connected');
+                    break;
+                    
+                case 'connecting':
+                    statusElement.textContent = 'Connecting...';
+                    statusElement.classList.add('status-connecting');
+                    break;
+                    
+                case 'error':
+                    statusElement.textContent = 'Error';
+                    statusElement.classList.add('status-error');
+                    break;
+                    
+                case 'disconnected':
+                default:
+                    statusElement.textContent = 'Disconnected';
+                    statusElement.classList.add('status-disconnected');
+                    break;
+            }
+        }
+        
+        if (addressElement) {
+            if (this.address) {
+                // Format address as 0x1234...5678
+                const formattedAddress = this.address.substring(0, 6) + '...' + this.address.substring(this.address.length - 4);
+                addressElement.textContent = formattedAddress;
+                addressElement.title = this.address;
+            } else {
+                addressElement.textContent = 'Not connected';
+                addressElement.title = '';
+            }
+        }
+        
+        if (networkElement) {
+            networkElement.textContent = this.networkName || 'Not connected';
+        }
+        
+        // Update buttons
+        if (connectButton) {
+            connectButton.style.display = this.isConnected ? 'none' : 'inline-block';
+        }
+        
+        if (disconnectButton) {
+            disconnectButton.style.display = this.isConnected ? 'inline-block' : 'none';
+        }
+        
+        if (installButton) {
+            installButton.style.display = window.ethereum ? 'none' : 'inline-block';
+        }
+        
+        // Update network selector if it exists
+        const networkSelector = document.getElementById('network-selector');
+        if (networkSelector && this.isConnected) {
+            // Set the value to the current chain ID
+            const options = networkSelector.options;
+            for (let i = 0; i < options.length; i++) {
+                if (parseInt(options[i].value) === this.chainId) {
+                    networkSelector.selectedIndex = i;
+                    break;
+                }
+            }
+        }
+    }
+    
+    /**
+     * Update balance UI
+     */
+    updateBalanceUI() {
+        const balanceElement = document.getElementById('wallet-balance');
+        
+        if (balanceElement && this.balance !== null) {
+            const currency = this.supportedNetworks[this.chainId]?.currency || 'ETH';
+            balanceElement.textContent = `${this.balance.toFixed(4)} ${currency}`;
+        }
+    }
+    
+    /**
+     * Register connection callback
+     * @param {Function} callback - Callback function
+     */
+    onConnectionChange(callback) {
+        if (typeof callback === 'function') {
+            this.connectionCallbacks.push(callback);
+        }
+    }
+    
+    /**
+     * Notify connection callbacks
+     * @param {Object} data - Connection data
+     */
+    notifyConnectionCallbacks(data) {
+        this.connectionCallbacks.forEach(callback => {
+            callback(data);
+        });
+    }
+    
+    /**
+     * Show notification
+     * @param {string} message - Notification message
+     * @param {string} type - Notification type (success, error, warning, info)
+     */
+    showNotification(message, type = 'info') {
+        if (window.showNotification) {
+            window.showNotification(message, type);
+        } else {
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+    }
+    
+    /**
+     * Get connection status
+     */
+    getConnectionStatus() {
+        return {
+            isConnected: this.isConnected,
+            address: this.address,
+            chainId: this.chainId,
+            networkName: this.networkName,
+            balance: this.balance,
+            status: this.connectionStatus,
+            errorMessage: this.errorMessage
+        };
+    }
+    
+    /**
+     * Get signer for transactions
+     */
+    getSigner() {
+        if (!this.isConnected || !this.provider) return null;
+        
+        // Create ethers.js provider and signer
+        if (!this.signer && window.ethers) {
+            const ethersProvider = new window.ethers.providers.Web3Provider(this.provider);
+            this.signer = ethersProvider.getSigner();
+        }
+        
+        return this.signer;
+    }
+    
+    /**
+     * Sign message
+     * @param {string} message - Message to sign
+     */
+    async signMessage(message) {
+        if (!this.isConnected || !this.provider) {
+            this.showNotification('Please connect your wallet first', 'error');
+            return null;
+        }
+        
+        try {
+            // Get signer
+            const signer = this.getSigner();
+            
+            if (!signer) {
+                this.showNotification('Signer not available', 'error');
+                return null;
+            }
+            
+            // Sign message
+            const signature = await signer.signMessage(message);
+            
+            return {
+                success: true,
+                signature: signature,
+                message: message
+            };
+        } catch (error) {
+            console.error('Error signing message:', error);
+            this.showNotification(`Error signing message: ${error.message || 'Unknown error'}`, 'error');
+            
+            return {
+                success: false,
+                error: error.message || 'Unknown error'
+            };
+        }
+    }
+    
+    /**
+     * Sign transaction for Antarctic Exchange
+     * @param {Object} transaction - Transaction data
+     */
+    async signAntarcticTransaction(transaction) {
+        if (!this.isConnected || !this.provider) {
+            this.showNotification('Please connect your wallet first', 'error');
+            return null;
+        }
+        
+        try {
+            // Get signer
+            const signer = this.getSigner();
+            
+            if (!signer) {
+                this.showNotification('Signer not available', 'error');
+                return null;
+            }
+            
+            // Create signature for Antarctic Exchange
+            // This is a simplified example - actual implementation would depend on Antarctic Exchange's API
+            const message = JSON.stringify({
+                action: transaction.action,
+                symbol: transaction.symbol,
+                amount: transaction.amount,
+                price: transaction.price,
+                leverage: transaction.leverage,
+                timestamp: Date.now()
+            });
+            
+            // Sign message
+            const signature = await signer.signMessage(message);
+            
+            return {
+                success: true,
+                signature: signature,
+                message: message,
+                transaction: transaction
+            };
+        } catch (error) {
+            console.error('Error signing Antarctic transaction:', error);
+            this.showNotification(`Error signing transaction: ${error.message || 'Unknown error'}`, 'error');
+            
+            return {
+                success: false,
+                error: error.message || 'Unknown error'
+            };
+        }
+    }
+}
+
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Create global instance
+    window.walletConnection = new EnhancedWalletConnection();
+    
+    // Initialize
+    window.walletConnection.initialize()
+        .then(result => {
+            console.log('Wallet connection initialized:', result);
+            
+            // Add event listeners for UI elements
+            const connectButton = document.getElementById('connect-wallet-btn');
+            if (connectButton) {
+                connectButton.addEventListener('click', () => {
+                    window.walletConnection.connect();
+                });
+            }
+            
+            const disconnectButton = document.getElementById('disconnect-wallet-btn');
+            if (disconnectButton) {
+                disconnectButton.addEventListener('click', () => {
+                    window.walletConnection.disconnect();
+                });
+            }
+            
+            const installButton = document.getElementById('install-metamask-btn');
+            if (installButton) {
+                installButton.addEventListener('click', () => {
+                    window.open('https://metamask.io/download.html', '_blank');
+                });
+            }
+            
+            const networkSelector = document.getElementById('network-selector');
+            if (networkSelector) {
+                networkSelector.addEventListener('change', () => {
+                    const chainId = parseInt(networkSelector.value);
+                    window.walletConnection.switchNetwork(chainId);
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error initializing wallet connection:', error);
+        });
 });
